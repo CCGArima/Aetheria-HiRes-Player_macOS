@@ -1,0 +1,62 @@
+{
+  "name": "aetheria-hires-player",
+  "version": "1.0.0",
+  "description": "Aetheria Hi-Res Audio Player with Space Age Luxury UI & Audiophile Sound Engine for Apple Silicon M2",
+  "main": "dist-electron/main.js",
+  "author": "Antigravity & Timur",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "vite build && npx esbuild electron/main.ts --bundle --platform=node --target=node20 --external:electron --outfile=dist-electron/main.js && npx esbuild electron/preload.ts --bundle --platform=node --target=node20 --external:electron --outfile=dist-electron/preload.js",
+    "dist": "npm run build && electron-builder --mac dmg --arm64"
+  },
+  "dependencies": {
+    "lucide-react": "^0.460.0",
+    "music-metadata": "^10.7.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.18",
+    "concurrently": "^8.2.2",
+    "electron": "^31.0.2",
+    "electron-builder": "^24.13.3",
+    "esbuild": "^0.21.5",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.0",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.aetheria.player",
+    "productName": "Aetheria Hi-Res Player",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "artifactName": "Aetheria-HiRes-Player-${version}-arm64.dmg",
+      "title": "Aetheria Hi-Res Player Installer"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "dist-react/**/*",
+      "package.json"
+    ]
+  }
+}
