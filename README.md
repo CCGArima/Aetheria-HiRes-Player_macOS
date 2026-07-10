@@ -4,17 +4,24 @@
 
 **Audiophile Flagship Desktop Music Player with Space-Age Glassmorphism UI & Native Apple Silicon Optimization**
 
-[![Platform: macOS (Apple Silicon)](https://img.shields.io/badge/Platform-macOS%20M1%2F%2FM2%2F%2FM3-00f2fe?style=for-the-badge&logo=apple&logoColor=white)](https://apple.com)
-[![Electron](https://img.shields.io/badge/Electron-31.0-47848F?style=for-the-badge&logo=electron&logoColor=white)](https://electronjs.org)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Platform: macOS Apple Silicon](https://img.shields.io/badge/macOS-M1%20%7C%20M2%20%7C%20M3%20%7C%20M4%20%7C%20M5%20(Pro%2FMax%2FUltra)-00f2fe?style=for-the-badge&logo=apple&logoColor=white)](https://apple.com)
+[![Architecture: arm64 Native](https://img.shields.io/badge/Architecture-100%25%20ARM64%20Native-3178C6?style=for-the-badge)](https://apple.com)
 [![Audio Engine: 64-bit Float](https://img.shields.io/badge/Audio%20Engine-64--bit%20Float%20DSP-8b5cf6?style=for-the-badge)](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
 
 <p align="center">
-  A state-of-the-art desktop audio player engineered for uncompromising audiophiles, featuring zero-click 10-band DSP equalization, real-time 60 FPS cosmic visualizers, and pristine Hi-Res lossless playback.
+  A state-of-the-art desktop audio player engineered for uncompromising audiophiles, featuring zero-click 10-band DSP equalization, real-time 60 FPS cosmic visualizers, and pristine Hi-Res lossless playback optimized for all Apple Silicon chips.
 </p>
 
 </div>
+
+---
+
+## ⚡ Apple Silicon Compatibility (M1 / M2 / M3 / M4 / M5 — Base, Pro, Max, Ultra)
+
+Aetheria Hi-Res Player is compiled directly to Apple's native **`arm64`** architecture. It executes directly on the Apple Silicon hardware without Rosetta 2 translation, delivering:
+- **100% Native ARM64 Performance**: Fully compatible across **M1, M2, M3, M4**, and upcoming **M5** series (including **Pro**, **Max**, and **Ultra** variants).
+- **Pro / Max / Ultra GPU Acceleration**: Cosmic 60 FPS visualizers leverage high unified memory bandwidth to render effortlessly on 5K Studio Displays and 6K Apple Pro Display XDR.
+- **MacBook Pro High-Impedance Headphone DAC Synergy**: Perfectly leverages the hardware high-impedance DAC built into 14" and 16" MacBook Pro and Mac Studio systems for studio-grade headphone monitoring.
 
 ---
 
@@ -45,22 +52,22 @@ Accelerated canvas visualizers optimized for Apple Silicon and Retina/5K Pro Dis
 - **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
 - **Audio Processing**: Web Audio API (`AudioContext`, `AnalyserNode` FFT 4096, `BiquadFilterNode`, `GainNode`)
 - **Metadata Parser**: `music-metadata` executed safely within the Electron Main Process via IPC
-- **Packaging**: `electron-builder` (`.dmg` installer for Apple Silicon M1/M2/M3)
+- **Packaging**: `electron-builder` (`.dmg` installer for Apple Silicon M1/M2/M3/M4/M5)
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **macOS** with Apple Silicon (M1, M2, or M3)
+- **macOS** with Apple Silicon (M1, M2, M3, M4, M5 — Base / Pro / Max / Ultra)
 - **Node.js** (v18 or v20+) & **npm**
 
 ### Installation & Development
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/Aetheria-HiRes-Player.git
-   cd Aetheria-HiRes-Player
+   git clone https://github.com/CCGArima/Aetheria-HiRes-Player_macOS.git
+   cd Aetheria-HiRes-Player_macOS
    ```
 
 2. **Install dependencies:**
