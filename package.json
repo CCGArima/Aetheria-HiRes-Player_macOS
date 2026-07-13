@@ -1,6 +1,6 @@
 {
   "name": "aetheria-hires-player",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Aetheria Hi-Res Audio Player with Space Age Luxury UI & Audiophile Sound Engine for Apple Silicon M2",
   "main": "dist-electron/main.js",
   "author": "Antigravity & Timur",
