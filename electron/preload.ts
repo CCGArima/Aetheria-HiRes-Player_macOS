@@ -19,7 +19,13 @@ const electronAPI = {
   readMetadata: (filePath: string): Promise<AudioTrackMetadata | null> =>
     ipcRenderer.invoke('audio:readMetadata', filePath),
   readFileBuffer: (filePath: string): Promise<ArrayBuffer> =>
-    ipcRenderer.invoke('audio:readFileBuffer', filePath)
+    ipcRenderer.invoke('audio:readFileBuffer', filePath),
+  saveLibrary: (tracks: any[]): Promise<boolean> =>
+    ipcRenderer.invoke('library:save', tracks),
+  loadLibrary: (): Promise<any[]> =>
+    ipcRenderer.invoke('library:load'),
+  fileExists: (filePath: string): Promise<boolean> =>
+    ipcRenderer.invoke('fs:fileExists', filePath)
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);

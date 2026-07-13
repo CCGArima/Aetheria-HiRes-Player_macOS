@@ -161,3 +161,35 @@ ipcMain.handle('audio:readFileBuffer', async (_event, filePath: string) => {
     throw new Error(`Failed to read file: ${filePath}`);
   }
 });
+
+// --- Персистенция библиотеки пользователя ---
+
+const libraryPath = path.join(app.getPath('userData'), 'library.json');
+
+// IPC: Сохранить пользовательскую библиотеку треков на диск
+ipcMain.handle('library:save', async (_event, tracks: any[]) => {
+  try {
+    fs.writeFileSync(libraryPath, JSON.stringify(tracks, null, 2), 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('Ошибка сохранения библиотеки:', err);
+    return false;
+  }
+});
+
+// IPC: Загрузить пользовательскую библиотеку треков с диска
+ipcMain.handle('library:load', async () => {
+  try {
+    if (!fs.existsSync(libraryPath)) return [];
+    const data = fs.readFileSync(libraryPath, 'utf-8');
+    return JSON.parse(data);
+  } catch (err) {
+    console.error('Ошибка загрузки библиотеки:', err);
+    return [];
+  }
+});
+
+// IPC: Проверить существование файла на диске
+ipcMain.handle('fs:fileExists', async (_event, filePath: string) => {
+  return fs.existsSync(filePath);
+});

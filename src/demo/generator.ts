@@ -9,7 +9,7 @@ export interface DemoTrack {
   bitrate: number;
   codec: string;
   isLossless: boolean;
-  generatorType: 'nebula' | 'pulsar' | 'orbit';
+  demoType: 'nebula' | 'pulsar' | 'orbit';
 }
 
 export const DEMO_TRACKS: DemoTrack[] = [
@@ -24,7 +24,7 @@ export const DEMO_TRACKS: DemoTrack[] = [
     bitrate: 4608,
     codec: 'WAV PCM 24/192',
     isLossless: true,
-    generatorType: 'nebula'
+    demoType: 'nebula'
   },
   {
     id: 'demo-2',
@@ -37,7 +37,7 @@ export const DEMO_TRACKS: DemoTrack[] = [
     bitrate: 2304,
     codec: 'FLAC LOSSLESS',
     isLossless: true,
-    generatorType: 'pulsar'
+    demoType: 'pulsar'
   },
   {
     id: 'demo-3',
@@ -50,12 +50,12 @@ export const DEMO_TRACKS: DemoTrack[] = [
     bitrate: 6144,
     codec: 'STUDIO MASTER 32-BIT FLOAT',
     isLossless: true,
-    generatorType: 'orbit'
+    demoType: 'orbit'
   }
 ];
 
 // Генерация высококачественного стерео WAV буфера в памяти для демо-треков
-export function generateDemoAudioBuffer(ctx: AudioContext, type: DemoTrack['generatorType']): AudioBuffer {
+export function generateDemoAudioBuffer(ctx: AudioContext, type: DemoTrack['demoType']): AudioBuffer {
   const sampleRate = ctx.sampleRate;
   const duration = 45; // 45 секунд зацикленного студийного демо
   const numFrames = sampleRate * duration;

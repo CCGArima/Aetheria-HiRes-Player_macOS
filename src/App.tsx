@@ -24,6 +24,20 @@ import {
   Headphones
 } from 'lucide-react';
 
+const LIBRARY_STORAGE_KEY = 'aetheria-user-library';
+
+// Проверка, является ли трек демонстрационным
+function isDemoTrack(t: AudioTrackMetadata): boolean {
+  return Boolean(t.demoType || t.id?.startsWith('demo-'));
+}
+
+// Подготовить треки для сохранения (убрать coverArt и демо-треки)
+function prepareTracksForSave(allTracks: AudioTrackMetadata[]): object[] {
+  return allTracks
+    .filter((t) => !isDemoTrack(t))
+    .map(({ coverArt, ...rest }) => rest);
+}
+
 export const App: React.FC = () => {
   const [tracks, setTracks] = useState<AudioTrackMetadata[]>(DEMO_TRACKS as AudioTrackMetadata[]);
   const [currentTrack, setCurrentTrack] = useState<AudioTrackMetadata>(DEMO_TRACKS[0] as AudioTrackMetadata);
@@ -33,7 +47,85 @@ export const App: React.FC = () => {
   const [volume, setVolume] = useState<number>(0.85);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>('orbital');
-  const [activeCategory, setActiveCategory] = useState<'demo' | 'library' | 'favorites'>('demo');
+  const [activeCategory, setActiveCategory] = useState<'all' | 'demo' | 'library' | 'favorites'>('demo');
+  const libraryLoaded = React.useRef(false);
+
+  // Загрузка сохранённой библиотеки при старте
+  useEffect(() => {
+    const load = async () => {
+      let savedTracks: AudioTrackMetadata[] = [];
+
+      // 1. Попытка загрузки из файла через Electron IPC
+      try {
+        const api = (window as any).electronAPI;
+        if (api?.loadLibrary) {
+          const fromFile = await api.loadLibrary();
+          if (Array.isArray(fromFile) && fromFile.length > 0) {
+            savedTracks = fromFile;
+          }
+        }
+      } catch (e) {
+        console.warn('electronAPI.loadLibrary не доступен:', e);
+      }
+
+      // 2. Fallback: загрузка из localStorage
+      if (savedTracks.length === 0) {
+        try {
+          const saved = localStorage.getItem(LIBRARY_STORAGE_KEY);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              savedTracks = parsed;
+            }
+          }
+        } catch (e) {
+          console.warn('localStorage загрузка не удалась:', e);
+        }
+      }
+
+      if (savedTracks.length > 0) {
+        setTracks((prev) => {
+          // Исключаем дубликаты (по id и filePath)
+          const existingIds = new Set(prev.map((t) => t.id));
+          const existingPaths = new Set(prev.map((t) => t.filePath).filter(Boolean));
+          const newTracks = savedTracks.filter(
+            (t) => !existingIds.has(t.id) && (!t.filePath || !existingPaths.has(t.filePath))
+          );
+          return newTracks.length > 0 ? [...prev, ...newTracks] : prev;
+        });
+        setActiveCategory('library');
+      }
+
+      libraryLoaded.current = true;
+    };
+    load();
+  }, []);
+
+  // Автосохранение при изменении треков (ТОЛЬКО после успешного завершения стартовой загрузки!)
+  useEffect(() => {
+    if (!libraryLoaded.current) {
+      return;
+    }
+
+    const tracksToSave = prepareTracksForSave(tracks);
+
+    // Сохраняем в localStorage
+    try {
+      localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(tracksToSave));
+    } catch (e) {
+      console.warn('localStorage сохранение не удалось:', e);
+    }
+
+    // Сохраняем в файл через Electron IPC
+    try {
+      const api = (window as any).electronAPI;
+      if (api?.saveLibrary) {
+        api.saveLibrary(tracksToSave);
+      }
+    } catch (e) {
+      console.warn('electronAPI.saveLibrary не удалось:', e);
+    }
+  }, [tracks]);
 
   // Таймер обновления времени воспроизведения
   useEffect(() => {
@@ -49,6 +141,32 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [isPlaying]);
 
+  const libraryTracksCount = React.useMemo(
+    () => tracks.filter((t) => !isDemoTrack(t)).length,
+    [tracks]
+  );
+  const demoTracksCount = React.useMemo(
+    () => tracks.filter((t) => isDemoTrack(t)).length,
+    [tracks]
+  );
+  const favoritesTracksCount = React.useMemo(
+    () => tracks.filter((t) => t.isLossless).length,
+    [tracks]
+  );
+
+  const displayedTracks = React.useMemo(() => {
+    if (activeCategory === 'demo') {
+      return tracks.filter((t) => isDemoTrack(t));
+    }
+    if (activeCategory === 'library') {
+      return tracks.filter((t) => !isDemoTrack(t));
+    }
+    if (activeCategory === 'favorites') {
+      return tracks.filter((t) => t.isLossless);
+    }
+    return tracks;
+  }, [tracks, activeCategory]);
+
   // Загрузка и воспроизведение трека
   const loadAndPlayTrack = async (track: AudioTrackMetadata) => {
     audioEngine.stop();
@@ -58,9 +176,9 @@ export const App: React.FC = () => {
 
     try {
       if (track.demoType) {
-        const ctx = (audioEngine as any).ctx || new (window.AudioContext || (window as any).webkitAudioContext)();
+        const ctx = audioEngine.getContext();
         const buffer = generateDemoAudioBuffer(ctx, track.demoType);
-        (audioEngine as any).currentBuffer = buffer;
+        audioEngine.loadBuffer(buffer);
         setDuration(track.duration);
         audioEngine.play(0);
         setIsPlaying(true);
@@ -127,7 +245,23 @@ export const App: React.FC = () => {
     }
 
     if (newTracks.length > 0) {
-      setTracks((prev) => [...prev, ...newTracks]);
+      libraryLoaded.current = true;
+      setTracks((prev) => {
+        const existingPaths = new Set(prev.map((t) => t.filePath).filter(Boolean));
+        const uniqueNew = newTracks.filter((t) => !t.filePath || !existingPaths.has(t.filePath));
+        const updated = [...prev, ...uniqueNew];
+        const tracksToSave = prepareTracksForSave(updated);
+        try {
+          localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(tracksToSave));
+        } catch (e) {}
+        try {
+          const api = (window as any).electronAPI;
+          if (api?.saveLibrary) {
+            api.saveLibrary(tracksToSave);
+          }
+        } catch (e) {}
+        return updated;
+      });
       setActiveCategory('library');
     }
   };
@@ -201,17 +335,17 @@ export const App: React.FC = () => {
             </div>
             <nav className="flex flex-col gap-1">
               <button
-                onClick={() => setActiveCategory('demo')}
+                onClick={() => setActiveCategory('all')}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                  activeCategory === 'demo'
+                  activeCategory === 'all'
                     ? 'bg-gradient-to-r from-indigo-500/30 to-purple-500/30 border border-indigo-500/40 text-cyan-300 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
                     : 'text-white/70 hover:bg-white/5'
                 }`}
               >
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                <span>Hi-Res Demo Tracks</span>
+                <ListMusic className="w-4 h-4 text-cyan-400" />
+                <span>Все треки</span>
                 <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10">
-                  {DEMO_TRACKS.length}
+                  {tracks.length}
                 </span>
               </button>
 
@@ -226,7 +360,22 @@ export const App: React.FC = () => {
                 <Library className="w-4 h-4 text-purple-400" />
                 <span>Моя Библиотека</span>
                 <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10">
-                  {tracks.length}
+                  {libraryTracksCount}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveCategory('demo')}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                  activeCategory === 'demo'
+                    ? 'bg-gradient-to-r from-indigo-500/30 to-purple-500/30 border border-indigo-500/40 text-cyan-300 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
+                    : 'text-white/70 hover:bg-white/5'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-cyan-400" />
+                <span>Hi-Res Demo Tracks</span>
+                <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10">
+                  {demoTracksCount}
                 </span>
               </button>
 
@@ -240,6 +389,9 @@ export const App: React.FC = () => {
               >
                 <Layers className="w-4 h-4 text-pink-400" />
                 <span>Lossless Избранное</span>
+                <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10">
+                  {favoritesTracksCount}
+                </span>
               </button>
             </nav>
           </div>
@@ -270,7 +422,7 @@ export const App: React.FC = () => {
           {/* Таблица треков */}
           <div className="flex-1">
             <PlaylistTable
-              tracks={tracks}
+              tracks={displayedTracks}
               currentTrackId={currentTrack.id}
               isPlaying={isPlaying}
               onSelectTrack={loadAndPlayTrack}

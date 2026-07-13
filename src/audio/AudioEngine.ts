@@ -43,6 +43,18 @@ export class AudioEngine {
 
   constructor() {}
 
+  /** Инициализирует и возвращает AudioContext движка */
+  public getContext(): AudioContext {
+    this.initContext();
+    return this.ctx!;
+  }
+
+  /** Загружает демо-буфер напрямую */
+  public loadBuffer(buffer: AudioBuffer) {
+    this.initContext();
+    this.currentBuffer = buffer;
+  }
+
   private initContext() {
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
