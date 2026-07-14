@@ -88,8 +88,25 @@ npm run dist
 ```
 The generated `.dmg` will be located in:
 ```bash
-dist/Aetheria-HiRes-Player-1.0.0-arm64.dmg
+dist/Aetheria-HiRes-Player-1.1.0-arm64.dmg
 ```
+
+---
+
+## 🛠️ Устранение ошибки macOS Gatekeeper («Приложение повреждено...»)
+
+При скачивании `.dmg` через браузер (Safari, Chrome, Firefox) система macOS добавляет файлу атрибут карантина (`com.apple.quarantine`). Поскольку приложение использует бесплатную open-source подпись (ad-hoc), macOS Gatekeeper может показать стандартное предупреждение:
+
+> **«Приложение "Aetheria Hi-Res Player" повреждено, и его не удается открыть. Переместите приложение в Корзину.»**
+
+### ✅ Решение в 1 команду (без пароля sudo):
+
+1. Перетащите **Aetheria Hi-Res Player.app** из `.dmg` в папку **Программы (`/Applications`)**.
+2. Откройте **Терминал (Terminal.app)** и выполните команду:
+   ```bash
+   xattr -cr "/Applications/Aetheria Hi-Res Player.app"
+   ```
+3. Готово! Приложение откроется мгновенно без предупреждений.
 
 ---
 
