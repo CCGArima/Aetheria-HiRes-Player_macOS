@@ -35,7 +35,8 @@ function createSvgCover(title: string, subtitle: string, color1: string, color2:
     <text x="200" y="335" font-family="sans-serif" font-size="16" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="2">${title}</text>
     <text x="200" y="358" font-family="sans-serif" font-size="11" font-weight="500" fill="${accent}" text-anchor="middle" letter-spacing="1">${subtitle}</text>
   </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  const base64 = btoa(unescape(encodeURIComponent(svg)));
+  return `data:image/svg+xml;base64,${base64}`;
 }
 
 export const DEMO_TRACKS: DemoTrack[] = [

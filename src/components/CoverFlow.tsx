@@ -140,6 +140,9 @@ export const CoverFlow: React.FC<CoverFlowProps> = ({
                     alt={album.album}
                     className="w-full h-full object-cover"
                     draggable={false}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 ) : (
                   <div

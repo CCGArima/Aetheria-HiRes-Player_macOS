@@ -218,6 +218,9 @@ export const PlaylistTable: React.FC<PlaylistTableProps> = ({
                               src={track.coverArt}
                               alt={track.album}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
                             />
                           ) : (
                             <div

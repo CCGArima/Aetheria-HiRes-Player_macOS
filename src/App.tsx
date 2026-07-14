@@ -40,9 +40,9 @@ function prepareTracksForSave(allTracks: AudioTrackMetadata[]): object[] {
   return allTracks.filter((t) => !isDemoTrack(t));
 }
 
-// Ensure track has coverArt
+// Ensure track has coverArt (and upgrade any old utf8 data URIs to base64)
 function ensureTrackCoverArt(t: AudioTrackMetadata): AudioTrackMetadata {
-  if (t.coverArt) return t;
+  if (t.coverArt && !t.coverArt.startsWith('data:image/svg+xml;utf8,')) return t;
   const hash = (t.album || t.title || 'Aetheria').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const colors = [
     ['#0a0f24', '#1f133e', '#00f2fe'],
@@ -73,7 +73,8 @@ function ensureTrackCoverArt(t: AudioTrackMetadata): AudioTrackMetadata {
     <text x="200" y="335" font-family="sans-serif" font-size="15" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="2">${cleanTitle}</text>
     <text x="200" y="358" font-family="sans-serif" font-size="11" font-weight="500" fill="${acc}" text-anchor="middle" letter-spacing="1">HI-RES LOSSLESS AUDIO</text>
   </svg>`;
-  t.coverArt = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  const base64 = btoa(unescape(encodeURIComponent(svg)));
+  t.coverArt = `data:image/svg+xml;base64,${base64}`;
   return t;
 }
 
@@ -133,7 +134,7 @@ const AppInner: React.FC = () => {
         const api = (window as any).electronAPI;
         if (api?.readMetadata) {
           for (const track of savedTracks) {
-            if (!track.coverArt && track.filePath) {
+            if ((!track.coverArt || track.coverArt.startsWith('data:image/svg+xml;utf8,')) && track.filePath) {
               try {
                 const meta = await api.readMetadata(track.filePath);
                 if (meta?.coverArt) {
@@ -661,6 +662,9 @@ const AppInner: React.FC = () => {
                 src={currentTrack.coverArt}
                 alt={currentTrack.album}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             ) : (
               <div
