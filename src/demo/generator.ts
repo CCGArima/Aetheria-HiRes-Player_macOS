@@ -9,7 +9,33 @@ export interface DemoTrack {
   bitrate: number;
   codec: string;
   isLossless: boolean;
+  coverArt?: string;
   demoType: 'nebula' | 'pulsar' | 'orbit';
+}
+
+// Helper to create beautiful audiophile SVG cover art as base64 data URI
+function createSvgCover(title: string, subtitle: string, color1: string, color2: string, accent: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${color1}"/>
+        <stop offset="100%" stop-color="${color2}"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="${accent}" stop-opacity="0.5"/>
+        <stop offset="100%" stop-color="${color2}" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="400" height="400" fill="url(#bg)"/>
+    <circle cx="200" cy="200" r="160" fill="url(#glow)"/>
+    <circle cx="200" cy="200" r="110" fill="none" stroke="${accent}" stroke-width="1.5" stroke-opacity="0.4" stroke-dasharray="8 4"/>
+    <circle cx="200" cy="200" r="75" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity="0.2"/>
+    <circle cx="200" cy="200" r="28" fill="${color1}" stroke="${accent}" stroke-width="3"/>
+    <circle cx="200" cy="200" r="8" fill="${accent}"/>
+    <text x="200" y="335" font-family="sans-serif" font-size="16" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="2">${title}</text>
+    <text x="200" y="358" font-family="sans-serif" font-size="11" font-weight="500" fill="${accent}" text-anchor="middle" letter-spacing="1">${subtitle}</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
 export const DEMO_TRACKS: DemoTrack[] = [
@@ -24,6 +50,7 @@ export const DEMO_TRACKS: DemoTrack[] = [
     bitrate: 4608,
     codec: 'WAV PCM 24/192',
     isLossless: true,
+    coverArt: createSvgCover('NEBULA AWAKENING', 'AETHERIA HI-RES 24/192', '#070a1e', '#1a103c', '#00f2fe'),
     demoType: 'nebula'
   },
   {
@@ -37,6 +64,7 @@ export const DEMO_TRACKS: DemoTrack[] = [
     bitrate: 2304,
     codec: 'FLAC LOSSLESS',
     isLossless: true,
+    coverArt: createSvgCover('STELLAR PULSAR', 'AUDIOPHILE ANTHOLOGY', '#1a052e', '#3b0d54', '#f43f5e'),
     demoType: 'pulsar'
   },
   {
@@ -50,6 +78,7 @@ export const DEMO_TRACKS: DemoTrack[] = [
     bitrate: 6144,
     codec: 'STUDIO MASTER 32-BIT FLOAT',
     isLossless: true,
+    coverArt: createSvgCover('DEEP ORBIT STUDIO', 'MASTER REFERENCE 32-BIT', '#0a1a1f', '#072e26', '#10b981'),
     demoType: 'orbit'
   }
 ];

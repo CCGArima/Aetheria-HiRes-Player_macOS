@@ -3,6 +3,9 @@ import { CosmicVisualizer, VisualizerMode } from './components/CosmicVisualizer'
 import { AudiophileEqualizer } from './components/AudiophileEqualizer';
 import { HiResBadge } from './components/HiResBadge';
 import { PlaylistTable } from './components/PlaylistTable';
+import { CoverFlow, AlbumCover } from './components/CoverFlow';
+import { ThemeProvider, useTheme } from './components/ThemeProvider';
+import { ThemePicker } from './components/ThemePicker';
 import { DEMO_TRACKS, generateDemoAudioBuffer } from './demo/generator';
 import { audioEngine } from './audio/AudioEngine';
 import { AudioTrackMetadata } from './types/audio';
@@ -18,10 +21,11 @@ import {
   Disc3,
   Library,
   FolderPlus,
-  Radio,
   Layers,
   ShieldCheck,
-  Headphones
+  Headphones,
+  LayoutGrid,
+  Waves,
 } from 'lucide-react';
 
 const LIBRARY_STORAGE_KEY = 'aetheria-user-library';
@@ -31,14 +35,54 @@ function isDemoTrack(t: AudioTrackMetadata): boolean {
   return Boolean(t.demoType || t.id?.startsWith('demo-'));
 }
 
-// Подготовить треки для сохранения (убрать coverArt и демо-треки)
+// Подготовить треки для сохранения (убрать демо-треки, сохранить coverArt)
 function prepareTracksForSave(allTracks: AudioTrackMetadata[]): object[] {
-  return allTracks
-    .filter((t) => !isDemoTrack(t))
-    .map(({ coverArt, ...rest }) => rest);
+  return allTracks.filter((t) => !isDemoTrack(t));
 }
 
-export const App: React.FC = () => {
+// Ensure track has coverArt
+function ensureTrackCoverArt(t: AudioTrackMetadata): AudioTrackMetadata {
+  if (t.coverArt) return t;
+  const hash = (t.album || t.title || 'Aetheria').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const colors = [
+    ['#0a0f24', '#1f133e', '#00f2fe'],
+    ['#140821', '#340a42', '#f43f5e'],
+    ['#081d18', '#073324', '#10b981'],
+    ['#1c1005', '#3d240a', '#f59e0b'],
+    ['#0a1428', '#102a52', '#38bdf8']
+  ];
+  const [c1, c2, acc] = colors[hash % colors.length];
+  const cleanTitle = (t.album || t.title).toUpperCase().slice(0, 22);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+    <defs>
+      <linearGradient id="bg-${hash}" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${c1}"/>
+        <stop offset="100%" stop-color="${c2}"/>
+      </linearGradient>
+      <radialGradient id="glow-${hash}" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="${acc}" stop-opacity="0.45"/>
+        <stop offset="100%" stop-color="${c2}" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="400" height="400" fill="url(#bg-${hash})"/>
+    <circle cx="200" cy="200" r="155" fill="url(#glow-${hash})"/>
+    <circle cx="200" cy="200" r="110" fill="none" stroke="${acc}" stroke-width="1.5" stroke-opacity="0.4" stroke-dasharray="8 4"/>
+    <circle cx="200" cy="200" r="75" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity="0.2"/>
+    <circle cx="200" cy="200" r="28" fill="${c1}" stroke="${acc}" stroke-width="3"/>
+    <circle cx="200" cy="200" r="8" fill="${acc}"/>
+    <text x="200" y="335" font-family="sans-serif" font-size="15" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="2">${cleanTitle}</text>
+    <text x="200" y="358" font-family="sans-serif" font-size="11" font-weight="500" fill="${acc}" text-anchor="middle" letter-spacing="1">HI-RES LOSSLESS AUDIO</text>
+  </svg>`;
+  t.coverArt = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  return t;
+}
+
+type CenterView = 'visualizer' | 'coverflow';
+
+const AppInner: React.FC = () => {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
   const [tracks, setTracks] = useState<AudioTrackMetadata[]>(DEMO_TRACKS as AudioTrackMetadata[]);
   const [currentTrack, setCurrentTrack] = useState<AudioTrackMetadata>(DEMO_TRACKS[0] as AudioTrackMetadata);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -48,6 +92,7 @@ export const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [visualizerMode, setVisualizerMode] = useState<VisualizerMode>('orbital');
   const [activeCategory, setActiveCategory] = useState<'all' | 'demo' | 'library' | 'favorites'>('demo');
+  const [centerView, setCenterView] = useState<CenterView>('visualizer');
   const libraryLoaded = React.useRef(false);
 
   // Загрузка сохранённой библиотеки при старте
@@ -84,11 +129,28 @@ export const App: React.FC = () => {
       }
 
       if (savedTracks.length > 0) {
+        // Re-extract cover art for tracks that were saved without it
+        const api = (window as any).electronAPI;
+        if (api?.readMetadata) {
+          for (const track of savedTracks) {
+            if (!track.coverArt && track.filePath) {
+              try {
+                const meta = await api.readMetadata(track.filePath);
+                if (meta?.coverArt) {
+                  track.coverArt = meta.coverArt;
+                }
+              } catch {}
+            }
+          }
+        }
+
+        const tracksWithCovers = savedTracks.map(ensureTrackCoverArt);
+
         setTracks((prev) => {
           // Исключаем дубликаты (по id и filePath)
           const existingIds = new Set(prev.map((t) => t.id));
           const existingPaths = new Set(prev.map((t) => t.filePath).filter(Boolean));
-          const newTracks = savedTracks.filter(
+          const newTracks = tracksWithCovers.filter(
             (t) => !existingIds.has(t.id) && (!t.filePath || !existingPaths.has(t.filePath))
           );
           return newTracks.length > 0 ? [...prev, ...newTracks] : prev;
@@ -167,6 +229,32 @@ export const App: React.FC = () => {
     return tracks;
   }, [tracks, activeCategory]);
 
+  // Build album list for Cover Flow
+  const albumCovers = React.useMemo<AlbumCover[]>(() => {
+    const albumMap = new Map<string, { artist: string; coverArt?: string; count: number }>();
+    for (const t of tracks) {
+      const existing = albumMap.get(t.album);
+      if (existing) {
+        existing.count++;
+        if (!existing.coverArt && t.coverArt) {
+          existing.coverArt = t.coverArt;
+        }
+      } else {
+        albumMap.set(t.album, {
+          artist: t.artist,
+          coverArt: t.coverArt,
+          count: 1,
+        });
+      }
+    }
+    return Array.from(albumMap.entries()).map(([album, info]) => ({
+      album,
+      artist: info.artist,
+      coverArt: info.coverArt,
+      trackCount: info.count,
+    }));
+  }, [tracks]);
+
   // Загрузка и воспроизведение трека
   const loadAndPlayTrack = async (track: AudioTrackMetadata) => {
     audioEngine.stop();
@@ -228,19 +316,15 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleAddFiles = async () => {
-    if (!(window as any).electronAPI) {
-      alert('Импорт локальных файлов доступен в macOS .dmg версии (Electron)');
-      return;
-    }
-    const filePaths: string[] = await (window as any).electronAPI.openAudioFiles();
+  // Import individual audio files
+  const importFiles = async (filePaths: string[]) => {
     if (!filePaths || filePaths.length === 0) return;
 
     const newTracks: AudioTrackMetadata[] = [];
     for (const fp of filePaths) {
       const meta = await (window as any).electronAPI.readMetadata(fp);
       if (meta) {
-        newTracks.push(meta);
+        newTracks.push(ensureTrackCoverArt(meta));
       }
     }
 
@@ -266,6 +350,24 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleAddFiles = async () => {
+    if (!(window as any).electronAPI) {
+      alert('Importing local files is available in the macOS .dmg version (Electron)');
+      return;
+    }
+    const filePaths: string[] = await (window as any).electronAPI.openAudioFiles();
+    await importFiles(filePaths);
+  };
+
+  const handleAddFolder = async () => {
+    if (!(window as any).electronAPI?.openAudioFolder) {
+      alert('Folder import is available in the macOS .dmg version (Electron)');
+      return;
+    }
+    const filePaths: string[] = await (window as any).electronAPI.openAudioFolder();
+    await importFiles(filePaths);
+  };
+
   const handleNext = () => {
     const currentIndex = tracks.findIndex((t) => t.id === currentTrack.id);
     const nextTrack = tracks[(currentIndex + 1) % tracks.length];
@@ -284,22 +386,51 @@ export const App: React.FC = () => {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const handleSelectAlbum = (albumName: string) => {
+    // Filter tracks by this album - switch to 'all' view to show them
+    setActiveCategory('all');
+    // Could add album filter here in the future
+  };
+
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#070811] text-white font-['Outfit',sans-serif] overflow-hidden select-none">
+    <div
+      className="flex flex-col h-screen w-screen text-white font-['Outfit',sans-serif] overflow-hidden select-none"
+      style={{ backgroundColor: c.bgPrimary }}
+    >
       {/* 1. ВЕРХНЯЯ ПАНЕЛЬ (HEADER) */}
-      <header className="h-16 px-6 flex items-center justify-between border-b border-white/10 bg-black/40 backdrop-blur-2xl z-30">
+      <header
+        className="h-16 px-6 flex items-center justify-between backdrop-blur-2xl z-30"
+        style={{
+          borderBottom: `1px solid ${c.glassBorder}`,
+          backgroundColor: 'rgba(0,0,0,0.4)',
+        }}
+      >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-400 via-indigo-500 to-purple-600 p-0.5 shadow-[0_0_20px_rgba(0,242,254,0.4)]">
-            <div className="w-full h-full bg-[#070811] rounded-[10px] flex items-center justify-center">
-              <Disc3 className="w-5 h-5 text-cyan-400 animate-spin" style={{ animationDuration: '10s' }} />
+          <div
+            className="w-10 h-10 rounded-xl p-0.5"
+            style={{
+              background: `linear-gradient(135deg, ${c.gradientFrom}, ${c.gradientVia}, ${c.gradientTo})`,
+              boxShadow: `0 0 20px ${c.accentGlow}`,
+            }}
+          >
+            <div
+              className="w-full h-full rounded-[10px] flex items-center justify-center"
+              style={{ backgroundColor: c.bgPrimary }}
+            >
+              <Disc3 className="w-5 h-5 animate-spin" style={{ animationDuration: '10s', color: c.accent }} />
             </div>
           </div>
           <div>
-            <h1 className="text-base font-extrabold tracking-wider bg-gradient-to-r from-white via-cyan-200 to-purple-300 bg-clip-text text-transparent">
+            <h1
+              className="text-base font-extrabold tracking-wider bg-clip-text text-transparent"
+              style={{
+                backgroundImage: `linear-gradient(to right, white, ${c.accent}, ${c.accentSecondary})`,
+              }}
+            >
               AETHERIA
             </h1>
             <p className="text-[10px] font-mono tracking-widest text-white/50 uppercase">
-              APPLE SILICON M2 FLAGSHIP AUDIOPHILE
+              APPLE SILICON FLAGSHIP AUDIOPHILE
             </p>
           </div>
         </div>
@@ -315,35 +446,79 @@ export const App: React.FC = () => {
           />
         </div>
 
-        {/* Импорт файлов */}
-        <button
-          onClick={handleAddFiles}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-bold shadow-[0_0_20px_rgba(0,242,254,0.3)] transition-all"
-        >
-          <FolderPlus className="w-4 h-4" />
-          <span>Добавить FLAC / WAV</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Theme Picker */}
+          <ThemePicker />
+
+          {/* Импорт файлов */}
+          <button
+            onClick={handleAddFiles}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold transition-all"
+            style={{
+              background: `linear-gradient(to right, ${c.gradientFrom}, ${c.gradientVia})`,
+              boxShadow: `0 0 20px ${c.accentGlow}`,
+            }}
+          >
+            <FolderPlus className="w-4 h-4" />
+            <span>Add FLAC / WAV</span>
+          </button>
+        </div>
       </header>
 
       {/* 2. ОСНОВНАЯ ОБЛАСТЬ (3 КОЛОНКИ: ЛЕВО, ЦЕНТР, ПРАВО) */}
       <main className="flex-1 flex overflow-hidden">
         {/* ЛЕВАЯ КОЛОНКА (САЙДБАР): Библиотека и Плейлисты */}
-        <aside className="w-64 border-r border-white/10 bg-black/30 backdrop-blur-xl p-4 flex flex-col justify-between hidden md:flex">
+        <aside
+          className="w-64 backdrop-blur-xl p-4 flex flex-col justify-between hidden md:flex"
+          style={{
+            borderRight: `1px solid ${c.glassBorder}`,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+          }}
+        >
           <div>
             <div className="text-[11px] font-mono uppercase tracking-wider text-white/40 mb-3 px-2">
-              АУДИОФИЛЬСКАЯ БАЗА
+              AUDIOPHILE DATABASE
             </div>
             <nav className="flex flex-col gap-1">
+              {/* View toggle: Visualizer / Cover Flow */}
+              <div className="flex gap-1 mb-3">
+                <button
+                  onClick={() => setCenterView('visualizer')}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-[10px] font-bold transition-all"
+                  style={{
+                    background: centerView === 'visualizer' ? `rgba(${c.accentRgb}, 0.2)` : 'transparent',
+                    border: centerView === 'visualizer' ? `1px solid rgba(${c.accentRgb}, 0.3)` : '1px solid transparent',
+                    color: centerView === 'visualizer' ? c.accent : 'rgba(255,255,255,0.5)',
+                  }}
+                >
+                  <Waves className="w-3.5 h-3.5" />
+                  Visualizer
+                </button>
+                <button
+                  onClick={() => setCenterView('coverflow')}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-[10px] font-bold transition-all"
+                  style={{
+                    background: centerView === 'coverflow' ? `rgba(${c.accentRgb}, 0.2)` : 'transparent',
+                    border: centerView === 'coverflow' ? `1px solid rgba(${c.accentRgb}, 0.3)` : '1px solid transparent',
+                    color: centerView === 'coverflow' ? c.accent : 'rgba(255,255,255,0.5)',
+                  }}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  Cover Flow
+                </button>
+              </div>
+
               <button
                 onClick={() => setActiveCategory('all')}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                  activeCategory === 'all'
-                    ? 'bg-gradient-to-r from-indigo-500/30 to-purple-500/30 border border-indigo-500/40 text-cyan-300 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
-                    : 'text-white/70 hover:bg-white/5'
-                }`}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                style={{
+                  background: activeCategory === 'all' ? `linear-gradient(to right, rgba(${c.accentRgb}, 0.15), rgba(${c.accentSecondaryRgb}, 0.1))` : 'transparent',
+                  border: activeCategory === 'all' ? `1px solid rgba(${c.accentRgb}, 0.3)` : '1px solid transparent',
+                  color: activeCategory === 'all' ? c.accent : 'rgba(255,255,255,0.7)',
+                }}
               >
-                <ListMusic className="w-4 h-4 text-cyan-400" />
-                <span>Все треки</span>
+                <ListMusic className="w-4 h-4" style={{ color: c.accent }} />
+                <span>All Tracks</span>
                 <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10">
                   {tracks.length}
                 </span>
@@ -351,14 +526,15 @@ export const App: React.FC = () => {
 
               <button
                 onClick={() => setActiveCategory('library')}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                  activeCategory === 'library'
-                    ? 'bg-gradient-to-r from-indigo-500/30 to-purple-500/30 border border-indigo-500/40 text-cyan-300 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
-                    : 'text-white/70 hover:bg-white/5'
-                }`}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                style={{
+                  background: activeCategory === 'library' ? `linear-gradient(to right, rgba(${c.accentRgb}, 0.15), rgba(${c.accentSecondaryRgb}, 0.1))` : 'transparent',
+                  border: activeCategory === 'library' ? `1px solid rgba(${c.accentRgb}, 0.3)` : '1px solid transparent',
+                  color: activeCategory === 'library' ? c.accent : 'rgba(255,255,255,0.7)',
+                }}
               >
-                <Library className="w-4 h-4 text-purple-400" />
-                <span>Моя Библиотека</span>
+                <Library className="w-4 h-4" style={{ color: c.accentSecondary }} />
+                <span>My Library</span>
                 <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10">
                   {libraryTracksCount}
                 </span>
@@ -366,14 +542,15 @@ export const App: React.FC = () => {
 
               <button
                 onClick={() => setActiveCategory('demo')}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                  activeCategory === 'demo'
-                    ? 'bg-gradient-to-r from-indigo-500/30 to-purple-500/30 border border-indigo-500/40 text-cyan-300 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
-                    : 'text-white/70 hover:bg-white/5'
-                }`}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                style={{
+                  background: activeCategory === 'demo' ? `linear-gradient(to right, rgba(${c.accentRgb}, 0.15), rgba(${c.accentSecondaryRgb}, 0.1))` : 'transparent',
+                  border: activeCategory === 'demo' ? `1px solid rgba(${c.accentRgb}, 0.3)` : '1px solid transparent',
+                  color: activeCategory === 'demo' ? c.accent : 'rgba(255,255,255,0.7)',
+                }}
               >
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                <span>Hi-Res Demo Tracks</span>
+                <Sparkles className="w-4 h-4" style={{ color: c.accent }} />
+                <span>Hi-Res Demo</span>
                 <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10">
                   {demoTracksCount}
                 </span>
@@ -381,14 +558,15 @@ export const App: React.FC = () => {
 
               <button
                 onClick={() => setActiveCategory('favorites')}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                  activeCategory === 'favorites'
-                    ? 'bg-gradient-to-r from-indigo-500/30 to-purple-500/30 border border-indigo-500/40 text-cyan-300'
-                    : 'text-white/70 hover:bg-white/5'
-                }`}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                style={{
+                  background: activeCategory === 'favorites' ? `linear-gradient(to right, rgba(${c.accentRgb}, 0.15), rgba(${c.accentSecondaryRgb}, 0.1))` : 'transparent',
+                  border: activeCategory === 'favorites' ? `1px solid rgba(${c.accentRgb}, 0.3)` : '1px solid transparent',
+                  color: activeCategory === 'favorites' ? c.accent : 'rgba(255,255,255,0.7)',
+                }}
               >
-                <Layers className="w-4 h-4 text-pink-400" />
-                <span>Lossless Избранное</span>
+                <Layers className="w-4 h-4" style={{ color: c.accentSecondary }} />
+                <span>Lossless Favorites</span>
                 <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10">
                   {favoritesTracksCount}
                 </span>
@@ -396,27 +574,42 @@ export const App: React.FC = () => {
             </nav>
           </div>
 
-          {/* Инфо-блок Apple Silicon M2 */}
-          <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 text-xs">
-            <div className="flex items-center gap-2 text-cyan-300 font-bold mb-1">
+          {/* Инфо-блок Apple Silicon */}
+          <div
+            className="p-3.5 rounded-xl text-xs"
+            style={{
+              background: c.glassBg,
+              border: `1px solid ${c.glassBorder}`,
+            }}
+          >
+            <div className="flex items-center gap-2 font-bold mb-1" style={{ color: c.accent }}>
               <ShieldCheck className="w-4 h-4" />
-              <span>Apple Silicon M2 Native</span>
+              <span>Apple Silicon Native</span>
             </div>
             <p className="text-[11px] text-white/50 leading-relaxed">
-              Прямой рендеринг через 64-битное ядро Web Audio DSP с нулевым джиттером.
+              64-bit Web Audio DSP rendering with zero-jitter playback.
             </p>
           </div>
         </aside>
 
-        {/* ЦЕНТРАЛЬНАЯ КОЛОНКА: Визуализатор + Таблица треков */}
+        {/* ЦЕНТРАЛЬНАЯ КОЛОНКА: Визуализатор/CoverFlow + Таблица треков */}
         <section className="flex-1 flex flex-col overflow-y-auto p-4 sm:p-6 gap-6">
-          {/* Интерактивный визуализатор в реальном времени */}
+          {/* Top view: Visualizer or Cover Flow */}
           <div className="w-full h-72 sm:h-80 flex-shrink-0">
-            <CosmicVisualizer
-              mode={visualizerMode}
-              onModeChange={setVisualizerMode}
-              isPlaying={isPlaying}
-            />
+            {centerView === 'visualizer' ? (
+              <CosmicVisualizer
+                mode={visualizerMode}
+                onModeChange={setVisualizerMode}
+                isPlaying={isPlaying}
+              />
+            ) : (
+              <CoverFlow
+                albums={albumCovers}
+                onSelectAlbum={handleSelectAlbum}
+                accentColor={c.accent}
+                accentRgb={c.accentRgb}
+              />
+            )}
           </div>
 
           {/* Таблица треков */}
@@ -427,28 +620,68 @@ export const App: React.FC = () => {
               isPlaying={isPlaying}
               onSelectTrack={loadAndPlayTrack}
               onAddFiles={handleAddFiles}
+              onAddFolder={handleAddFolder}
+              accentColor={c.accent}
+              accentRgb={c.accentRgb}
             />
           </div>
         </section>
 
         {/* ПРАВАЯ КОЛОНКА: 10-полосный эквалайзер + Spatializer */}
-        <aside className="w-96 border-l border-white/10 bg-black/30 backdrop-blur-xl p-4 overflow-y-auto hidden xl:block">
+        <aside
+          className="w-96 backdrop-blur-xl p-4 overflow-y-auto hidden xl:block"
+          style={{
+            borderLeft: `1px solid ${c.glassBorder}`,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+          }}
+        >
           <AudiophileEqualizer />
         </aside>
       </main>
 
       {/* 3. НИЖНЯЯ ПАНЕЛЬ ПЛЕЕРА (AUDIOPHILE DECK) */}
-      <footer className="h-24 px-6 flex items-center justify-between border-t border-white/10 bg-black/70 backdrop-blur-2xl z-30">
-        {/* Текущий трек */}
+      <footer
+        className="h-24 px-6 flex items-center justify-between backdrop-blur-2xl z-30"
+        style={{
+          borderTop: `1px solid ${c.glassBorder}`,
+          backgroundColor: 'rgba(0,0,0,0.7)',
+        }}
+      >
+        {/* Текущий трек с обложкой */}
         <div className="flex items-center gap-4 w-1/4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/30 to-purple-500/30 border border-white/10 flex items-center justify-center shadow-md">
-            <Radio className="w-6 h-6 text-cyan-300" />
+          <div
+            className="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden shadow-lg"
+            style={{
+              border: `1px solid ${c.glassBorder}`,
+              boxShadow: currentTrack.coverArt ? `0 0 20px ${c.accentGlow}` : undefined,
+            }}
+          >
+            {currentTrack.coverArt ? (
+              <img
+                src={currentTrack.coverArt}
+                alt={currentTrack.album}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center"
+                style={{
+                  background: `linear-gradient(135deg, rgba(${c.accentRgb}, 0.2), rgba(${c.accentSecondaryRgb}, 0.1))`,
+                }}
+              >
+                {currentTrack.demoType ? (
+                  <Sparkles className="w-6 h-6" style={{ color: c.accent }} />
+                ) : (
+                  <Disc3 className="w-6 h-6 animate-spin" style={{ animationDuration: '4s', color: c.accent }} />
+                )}
+              </div>
+            )}
           </div>
           <div className="overflow-hidden">
             <div className="font-bold text-sm truncate text-white">{currentTrack.title}</div>
             <div className="text-xs text-white/50 truncate flex items-center gap-2 mt-0.5">
               <span>{currentTrack.artist}</span>
-              <span className="text-amber-400 font-mono text-[10px]">
+              <span className="font-mono text-[10px]" style={{ color: c.accent }}>
                 {currentTrack.bitDepth}b/{currentTrack.sampleRate / 1000}k
               </span>
             </div>
@@ -467,7 +700,11 @@ export const App: React.FC = () => {
 
             <button
               onClick={togglePlayPause}
-              className="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-400 via-indigo-500 to-purple-500 text-white flex items-center justify-center shadow-[0_0_25px_rgba(0,242,254,0.5)] hover:scale-105 transition-transform"
+              className="w-12 h-12 rounded-full text-white flex items-center justify-center hover:scale-105 transition-transform"
+              style={{
+                background: `linear-gradient(135deg, ${c.gradientFrom}, ${c.gradientVia}, ${c.gradientTo})`,
+                boxShadow: `0 0 25px ${c.accentGlow}`,
+              }}
             >
               {isPlaying ? (
                 <Pause className="w-5 h-5 fill-current" />
@@ -496,7 +733,7 @@ export const App: React.FC = () => {
               step="0.1"
               value={currentTime}
               onChange={handleSeek}
-              className="flex-1 h-1.5 appearance-none bg-white/10 rounded-full accent-cyan-400 cursor-pointer"
+              className="flex-1 h-1.5 appearance-none bg-white/10 rounded-full cursor-pointer"
             />
             <span className="text-[11px] font-mono text-white/50 w-10">
               {formatTime(duration)}
@@ -506,7 +743,7 @@ export const App: React.FC = () => {
 
         {/* Громкость и аудиофильный индикатор */}
         <div className="flex items-center justify-end gap-3 w-1/4">
-          <Headphones className="w-4 h-4 text-cyan-400 hidden sm:block" />
+          <Headphones className="w-4 h-4 hidden sm:block" style={{ color: c.accent }} />
           <button onClick={toggleMute} className="text-white/60 hover:text-white">
             {isMuted ? <VolumeX className="w-5 h-5 text-red-400" /> : <Volume2 className="w-5 h-5" />}
           </button>
@@ -517,10 +754,18 @@ export const App: React.FC = () => {
             step="0.01"
             value={isMuted ? 0 : volume}
             onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-            className="w-24 h-1.5 appearance-none bg-white/10 rounded-full accent-cyan-400 cursor-pointer"
+            className="w-24 h-1.5 appearance-none bg-white/10 rounded-full cursor-pointer"
           />
         </div>
       </footer>
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
   );
 };

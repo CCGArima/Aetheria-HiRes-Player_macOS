@@ -16,6 +16,7 @@ export interface AudioTrackMetadata {
 
 const electronAPI = {
   openAudioFiles: (): Promise<string[]> => ipcRenderer.invoke('dialog:openAudioFiles'),
+  openAudioFolder: (): Promise<string[]> => ipcRenderer.invoke('dialog:openAudioFolder'),
   readMetadata: (filePath: string): Promise<AudioTrackMetadata | null> =>
     ipcRenderer.invoke('audio:readMetadata', filePath),
   readFileBuffer: (filePath: string): Promise<ArrayBuffer> =>

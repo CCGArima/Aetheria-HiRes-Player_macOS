@@ -40,6 +40,7 @@
     },
     "mac": {
       "category": "public.app-category.music",
+      "identity": null,
       "target": [
         {
           "target": "dmg",

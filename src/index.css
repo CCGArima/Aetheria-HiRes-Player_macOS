@@ -2,6 +2,23 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
+:root {
+  --bg-primary: #070811;
+  --bg-secondary: #0a0d1a;
+  --accent: #00f2fe;
+  --accent-rgb: 0, 242, 254;
+  --accent-glow: rgba(0, 242, 254, 0.4);
+  --accent-secondary: #8b5cf6;
+  --accent-secondary-rgb: 139, 92, 246;
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --scrollbar-thumb: rgba(0, 242, 254, 0.3);
+  --slider-glow: #8b5cf6;
+  --gradient-from: #06b6d4;
+  --gradient-via: #6366f1;
+  --gradient-to: #a855f7;
+}
+
 @layer base {
   * {
     margin: 0;
@@ -10,7 +27,7 @@
   }
 
   body {
-    background-color: #070811;
+    background-color: var(--bg-primary);
     color: #ffffff;
     font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
     overflow: hidden;
@@ -24,31 +41,34 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--glass-bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 242, 254, 0.3);
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 242, 254, 0.6);
+  background: var(--accent);
+  opacity: 0.6;
 }
 
 /* Стилизация ползунков (Input range) */
 input[type='range'] {
   -webkit-appearance: none;
+  appearance: none;
   background: transparent;
 }
 
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
+  appearance: none;
   height: 14px;
   width: 14px;
   border-radius: 50%;
-  background: #00f2fe;
-  box-shadow: 0 0 10px #00f2fe, 0 0 20px #8b5cf6;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent), 0 0 20px var(--slider-glow);
   cursor: pointer;
   transition: transform 0.15s ease;
 }
