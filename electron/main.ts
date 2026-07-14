@@ -139,8 +139,10 @@ ipcMain.handle('audio:readMetadata', async (_event, filePath: string) => {
       if (metadata.format.codec) codec = metadata.format.codec.toUpperCase();
 
       if (metadata.common.picture && metadata.common.picture.length > 0) {
-        const pic = metadata.common.picture[0];
-        coverArt = `data:${pic.format};base64,${pic.data.toString('base64')}`;
+        const pic = mm.selectCover ? (mm.selectCover(metadata.common.picture) || metadata.common.picture[0]) : metadata.common.picture[0];
+        const base64Data = Buffer.from(pic.data).toString('base64');
+        const mime = pic.format || 'image/jpeg';
+        coverArt = `data:${mime};base64,${base64Data}`;
       }
     } catch (mmErr) {
       // Fallback на нативный заголовочный парсер, если файл нестандартный
