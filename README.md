@@ -93,20 +93,21 @@ dist/Aetheria-HiRes-Player-1.1.0-arm64.dmg
 
 ---
 
-## 🛠️ Устранение ошибки macOS Gatekeeper («Приложение повреждено...»)
+## 🛠️ macOS Gatekeeper Notice ("App is damaged and can't be opened")
 
-При скачивании `.dmg` через браузер (Safari, Chrome, Firefox) система macOS добавляет файлу атрибут карантина (`com.apple.quarantine`). Поскольку приложение использует бесплатную open-source подпись (ad-hoc), macOS Gatekeeper может показать стандартное предупреждение:
+When downloading the `.dmg` installer via a browser (Safari, Chrome, Firefox), macOS attaches a quarantine attribute (`com.apple.quarantine`). Because Aetheria uses an ad-hoc open-source code signature, macOS Gatekeeper may display a standard security prompt:
 
-> **«Приложение "Aetheria Hi-Res Player" повреждено, и его не удается открыть. Переместите приложение в Корзину.»**
+> **"Aetheria Hi-Res Player.app is damaged and can't be opened. You should move it to the Bin."**
 
-### ✅ Решение в 1 команду (без пароля sudo):
+### ✅ One-Command Fix (No sudo required):
 
-1. Перетащите **Aetheria Hi-Res Player.app** из `.dmg` в папку **Программы (`/Applications`)**.
-2. Откройте **Терминал (Terminal.app)** и выполните команду:
+1. Drag **Aetheria Hi-Res Player.app** from the `.dmg` into your **Applications (`/Applications`)** folder.
+2. Open **Terminal (`Terminal.app`)** and run:
    ```bash
    xattr -cr "/Applications/Aetheria Hi-Res Player.app"
    ```
-3. Готово! Приложение откроется мгновенно без предупреждений.
+3. Done! You can now launch Aetheria Hi-Res Player normally with zero warnings.
+
 
 ---
 
