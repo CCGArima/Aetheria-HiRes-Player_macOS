@@ -216,7 +216,8 @@ ipcMain.handle('audio:readMetadata', async (_event, filePath: string) => {
         <text x="200" y="335" font-family="sans-serif" font-size="15" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="2">${cleanTitle}</text>
         <text x="200" y="358" font-family="sans-serif" font-size="11" font-weight="500" fill="${acc}" text-anchor="middle" letter-spacing="1">HI-RES LOSSLESS AUDIO</text>
       </svg>`;
-      coverArt = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+      const base64Svg = Buffer.from(svg, 'utf-8').toString('base64');
+      coverArt = `data:image/svg+xml;base64,${base64Svg}`;
     }
 
     // Оценка Dynamic Range

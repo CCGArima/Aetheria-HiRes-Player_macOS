@@ -9,6 +9,7 @@ import { ThemePicker } from './components/ThemePicker';
 import { DEMO_TRACKS, generateDemoAudioBuffer } from './demo/generator';
 import { audioEngine } from './audio/AudioEngine';
 import { AudioTrackMetadata } from './types/audio';
+import { generateBase64SvgCover } from './utils/coverArt';
 import {
   Play,
   Pause,
@@ -657,29 +658,22 @@ const AppInner: React.FC = () => {
               boxShadow: currentTrack.coverArt ? `0 0 20px ${c.accentGlow}` : undefined,
             }}
           >
-            {currentTrack.coverArt ? (
-              <img
-                src={currentTrack.coverArt}
-                alt={currentTrack.album}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            ) : (
-              <div
-                className="w-full h-full flex items-center justify-center"
-                style={{
-                  background: `linear-gradient(135deg, rgba(${c.accentRgb}, 0.2), rgba(${c.accentSecondaryRgb}, 0.1))`,
-                }}
-              >
-                {currentTrack.demoType ? (
-                  <Sparkles className="w-6 h-6" style={{ color: c.accent }} />
-                ) : (
-                  <Disc3 className="w-6 h-6 animate-spin" style={{ animationDuration: '4s', color: c.accent }} />
-                )}
-              </div>
-            )}
+            {(() => {
+              const coverSrc = currentTrack.coverArt || generateBase64SvgCover(currentTrack.album || currentTrack.title, c.accent);
+              const fallback = generateBase64SvgCover(currentTrack.album || currentTrack.title, c.accent);
+              return (
+                <img
+                  src={coverSrc}
+                  alt={currentTrack.album}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    if (e.currentTarget.src !== fallback) {
+                      e.currentTarget.src = fallback;
+                    }
+                  }}
+                />
+              );
+            })()}
           </div>
           <div className="overflow-hidden">
             <div className="font-bold text-sm truncate text-white">{currentTrack.title}</div>

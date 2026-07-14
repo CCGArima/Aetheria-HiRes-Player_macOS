@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Disc3 } from 'lucide-react';
+import { generateBase64SvgCover } from '../utils/coverArt';
 
 export interface AlbumCover {
   album: string;
@@ -134,35 +135,23 @@ export const CoverFlow: React.FC<CoverFlowProps> = ({
                     : '1px solid rgba(255,255,255,0.1)',
                 }}
               >
-                {album.coverArt ? (
-                  <img
-                    src={album.coverArt}
-                    alt={album.album}
-                    className="w-full h-full object-cover"
-                    draggable={false}
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div
-                    className="w-full h-full flex flex-col items-center justify-center gap-2"
-                    style={{
-                      background: `linear-gradient(135deg, rgba(${accentRgb}, 0.2), rgba(${accentRgb}, 0.05))`,
-                    }}
-                  >
-                    <Disc3
-                      className="w-14 h-14"
-                      style={{ color: `rgba(${accentRgb}, 0.6)` }}
+                {(() => {
+                  const coverSrc = album.coverArt || generateBase64SvgCover(album.album, accentColor);
+                  const fallback = generateBase64SvgCover(album.album, accentColor);
+                  return (
+                    <img
+                      src={coverSrc}
+                      alt={album.album}
+                      className="w-full h-full object-cover"
+                      draggable={false}
+                      onError={(e) => {
+                        if (e.currentTarget.src !== fallback) {
+                          e.currentTarget.src = fallback;
+                        }
+                      }}
                     />
-                    <span
-                      className="text-[10px] font-bold text-center px-2 truncate w-full"
-                      style={{ color: `rgba(${accentRgb}, 0.8)` }}
-                    >
-                      {album.album}
-                    </span>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* Reflection */}
@@ -179,21 +168,23 @@ export const CoverFlow: React.FC<CoverFlowProps> = ({
                   pointerEvents: 'none',
                 }}
               >
-                {album.coverArt ? (
-                  <img
-                    src={album.coverArt}
-                    alt=""
-                    className="w-full h-full object-cover object-bottom"
-                    draggable={false}
-                  />
-                ) : (
-                  <div
-                    className="w-full h-full"
-                    style={{
-                      background: `linear-gradient(135deg, rgba(${accentRgb}, 0.15), rgba(${accentRgb}, 0.03))`,
-                    }}
-                  />
-                )}
+                {(() => {
+                  const coverSrc = album.coverArt || generateBase64SvgCover(album.album, accentColor);
+                  const fallback = generateBase64SvgCover(album.album, accentColor);
+                  return (
+                    <img
+                      src={coverSrc}
+                      alt=""
+                      className="w-full h-full object-cover object-bottom"
+                      draggable={false}
+                      onError={(e) => {
+                        if (e.currentTarget.src !== fallback) {
+                          e.currentTarget.src = fallback;
+                        }
+                      }}
+                    />
+                  );
+                })()}
               </div>
             </div>
           );

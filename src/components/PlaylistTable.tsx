@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Play, Pause, Search, Music, FolderPlus, Sparkles, Disc3 } from 'lucide-react';
+import { generateBase64SvgCover } from '../utils/coverArt';
 
 export interface PlaylistTrack {
   id: string;
@@ -213,29 +214,22 @@ export const PlaylistTable: React.FC<PlaylistTableProps> = ({
                             border: `1px solid var(--glass-border)`,
                           }}
                         >
-                          {track.coverArt ? (
-                            <img
-                              src={track.coverArt}
-                              alt={track.album}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div
-                              className="w-full h-full flex items-center justify-center"
-                              style={{
-                                background: `linear-gradient(135deg, rgba(${accentRgb}, 0.15), rgba(${accentRgb}, 0.03))`,
-                              }}
-                            >
-                              {track.demoType ? (
-                                <Sparkles className="w-4 h-4" style={{ color: `rgba(${accentRgb}, 0.5)` }} />
-                              ) : (
-                                <Disc3 className="w-4 h-4" style={{ color: `rgba(${accentRgb}, 0.5)` }} />
-                              )}
-                            </div>
-                          )}
+                          {(() => {
+                            const coverSrc = track.coverArt || generateBase64SvgCover(track.album || track.title, accentColor);
+                            const fallback = generateBase64SvgCover(track.album || track.title, accentColor);
+                            return (
+                              <img
+                                src={coverSrc}
+                                alt={track.album}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  if (e.currentTarget.src !== fallback) {
+                                    e.currentTarget.src = fallback;
+                                  }
+                                }}
+                              />
+                            );
+                          })()}
                         </div>
                         <div className="min-w-0">
                           <div className={`font-bold truncate ${isCurrent ? '' : 'text-white'}`}
